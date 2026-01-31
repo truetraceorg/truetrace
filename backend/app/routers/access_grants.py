@@ -11,7 +11,7 @@ from app.db.session import get_db
 from app.deps import get_current_user
 from app.schemas import AccessGrantCreate, AccessGrantOut
 
-router = APIRouter(prefix="/api/access-grants", tags=["access_grants"])
+router = APIRouter(prefix="/access-grants", tags=["access_grants"])
 
 
 def _to_out(g: AccessGrant) -> AccessGrantOut:

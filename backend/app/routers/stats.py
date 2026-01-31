@@ -10,7 +10,7 @@ from app.db.session import get_db
 from app.deps import get_current_user
 from app.schemas import AuditLogOut, StatsOut
 
-router = APIRouter(prefix="/api/stats", tags=["stats"])
+router = APIRouter(prefix="/stats", tags=["stats"])
 
 
 def _audit_out(a: AuditLog) -> AuditLogOut:

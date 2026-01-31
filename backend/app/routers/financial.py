@@ -11,7 +11,7 @@ from app.db.session import get_db
 from app.deps import get_current_user
 from app.schemas import FinancialRecordCreate, FinancialRecordOut
 
-router = APIRouter(prefix="/api/financial", tags=["financial"])
+router = APIRouter(prefix="/financial", tags=["financial"])
 
 
 def _to_out(fr: FinancialRecord) -> FinancialRecordOut:

@@ -13,7 +13,7 @@ from app.deps import get_current_user
 from app.schemas import MedicalRecordCreate, MedicalRecordOut, MedicalRecordUpdate, RecordType
 from app.validation import validate_record_data
 
-router = APIRouter(prefix="/api/medical", tags=["medical"])
+router = APIRouter(prefix="/medical", tags=["medical"])
 
 
 @router.get("", response_model=list[MedicalRecordOut])

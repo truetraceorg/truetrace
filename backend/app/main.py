@@ -14,7 +14,7 @@ from app.routers.stats import router as stats_router
 app = FastAPI(title="MedVault API", version="0.1.0")
 
 
-@app.get("/api/health")
+@app.get("/health")
 def health():
     return {"ok": True}
 

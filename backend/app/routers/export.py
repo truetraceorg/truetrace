@@ -11,7 +11,7 @@ from app.db.models import AccessGrant, Document, FinancialRecord, MedicalRecord,
 from app.db.session import get_db
 from app.deps import get_current_user
 
-router = APIRouter(prefix="/api/export", tags=["export"])
+router = APIRouter(prefix="/export", tags=["export"])
 
 
 def _iso(dt: Any) -> Any:

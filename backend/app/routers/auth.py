@@ -15,7 +15,7 @@ from app.schemas import (
 from app.security import create_access_token, hash_password, verify_password
 from app.deps import get_current_user
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=AuthTokenOut)

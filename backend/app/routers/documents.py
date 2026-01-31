@@ -14,7 +14,7 @@ from app.s3 import build_object_key, s3_client
 from app.schemas import DocumentCategory, DocumentOut
 from app.settings import settings
 
-router = APIRouter(prefix="/api/documents", tags=["documents"])
+router = APIRouter(prefix="/documents", tags=["documents"])
 
 ALLOWED_CONTENT_TYPES = {"application/pdf", "image/png", "image/jpeg"}
 

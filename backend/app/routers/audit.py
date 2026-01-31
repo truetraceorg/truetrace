@@ -11,7 +11,7 @@ from app.db.session import get_db
 from app.deps import get_current_user
 from app.schemas import AuditLogOut
 
-router = APIRouter(prefix="/api/audit", tags=["audit"])
+router = APIRouter(prefix="/audit", tags=["audit"])
 
 
 def _to_out(a: AuditLog) -> AuditLogOut:
