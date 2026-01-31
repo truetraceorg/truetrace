@@ -82,3 +82,52 @@ export async function getSession(): Promise<{ passkeyId: string | null }> {
 export async function clearSession(): Promise<void> {
   await fetchJson("/api/session", { method: "DELETE" });
 }
+
+// Share types
+export type SharesResponse = {
+  outgoing: Array<{ targetEntityId: string; propertyName: string }>;
+  incoming: Array<{ sourceEntityId: string; propertyName: string; keyWrapped: unknown }>;
+};
+
+export type ShareConsumeResponse = {
+  sourceEntityId: string;
+  propertyName: string;
+  sealedKey: unknown;
+};
+
+// Share API functions
+export async function createShare(
+  code: string,
+  propertyName: string,
+  sealedKey: unknown
+): Promise<{ expiresAt: number }> {
+  return fetchJson<{ expiresAt: number }>("/api/shares/create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, propertyName, sealedKey })
+  });
+}
+
+export async function consumeShare(code: string): Promise<ShareConsumeResponse> {
+  return fetchJson<ShareConsumeResponse>("/api/shares/consume", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code })
+  });
+}
+
+export async function revokeShare(
+  targetEntityId: string | null,
+  sourceEntityId: string | null,
+  propertyName: string
+): Promise<{ removed: boolean }> {
+  return fetchJson<{ removed: boolean }>("/api/shares/revoke", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ targetEntityId, sourceEntityId, propertyName })
+  });
+}
+
+export async function getShares(): Promise<SharesResponse> {
+  return fetchJson<SharesResponse>("/api/shares");
+}

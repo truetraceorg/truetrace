@@ -182,3 +182,22 @@ export async function openSealedPrivateKey(
   );
   return sodiumLib.crypto_secretbox_open_easy(ciphertext, nonce, key);
 }
+
+// Share key sealing (same pattern as invite, but for data sharing between entities)
+export async function sealKeyForShare(
+  rawPrivateKey: Uint8Array,
+  shareCode: string
+): Promise<SealedInvitePayload> {
+  return sealPrivateKeyForInvite(rawPrivateKey, shareCode);
+}
+
+export async function openSharedKey(
+  sealed: SealedInvitePayload,
+  shareCode: string
+): Promise<Uint8Array> {
+  return openSealedPrivateKey(sealed, shareCode);
+}
+
+export function generateShareCode(length = 12): string {
+  return generateInviteCode(length);
+}

@@ -12,8 +12,10 @@ import { toast } from "sonner";
 import {
   generateEntityKeyPair,
   generateInviteCode,
+  generateShareCode,
   openSealedPrivateKey,
   sealPrivateKeyForInvite,
+  sealKeyForShare,
   unwrapPrivateKey,
   wrapPrivateKey,
   type SealedInvitePayload
@@ -27,7 +29,12 @@ import {
   initEntity,
   initEntityIfExists,
   linkPasskey,
-  resetAll
+  resetAll,
+  createShare,
+  consumeShare,
+  revokeShare,
+  getShares,
+  type SharesResponse
 } from "../lib/api";
 import { useEventStream, type EntityState } from "./useEventStream";
 
@@ -68,6 +75,13 @@ export function useVault() {
   const [isNewEntity, setIsNewEntity] = useState(false);
   const restoreAttemptedRef = useRef(false);
   const [restoreDone, setRestoreDone] = useState(false);
+
+  // Share-related state
+  const [sharePropertyName, setSharePropertyName] = useState("");
+  const [shareCode, setShareCode] = useState("");
+  const [generatedShare, setGeneratedShare] = useState<{ code: string; propertyName: string; expiresAt: number } | null>(null);
+  const [shares, setShares] = useState<SharesResponse>({ outgoing: [], incoming: [] });
+  const [pendingShareCodes, setPendingShareCodes] = useState<Map<string, string>>(new Map()); // sourceEntityId -> code
 
   // Real-time event stream for profile data (encrypted)
   const eventStream = useEventStream(
@@ -158,13 +172,20 @@ export function useVault() {
       let credentialId: string;
 
       if (storedCredentialId) {
-        // User has registered before - authenticate with existing passkey
+        // User has registered before - authenticate with specific credential
         const auth = await startAuthentication({
           optionsJSON: {
             challenge: randomBase64Url(),
             timeout: 60000,
             userVerification: "required",
-            rpId: window.location.hostname
+            rpId: window.location.hostname,
+            allowCredentials: [
+              {
+                id: storedCredentialId,
+                type: "public-key",
+                transports: ["internal", "hybrid"]
+              }
+            ]
           }
         });
         credentialId = auth.id;
@@ -237,9 +258,75 @@ export function useVault() {
       setEntityPrivateKey(null);
       setInviteCode("");
       setGeneratedInvite(null);
+      setShares({ outgoing: [], incoming: [] });
+      setGeneratedShare(null);
     },
     onError: (err: unknown) => {
       toast.error(err instanceof Error ? err.message : "Failed to reset.");
+    }
+  });
+
+  // Create a share invite
+  const createShareMutation = useMutation({
+    mutationFn: async (propertyName: string) => {
+      if (!entityId || !entityPrivateKey) throw new Error("Not authenticated");
+      const code = generateShareCode();
+      const sealedKey = await sealKeyForShare(entityPrivateKey, code);
+      const { expiresAt } = await createShare(code, propertyName, sealedKey);
+      setGeneratedShare({ code, propertyName, expiresAt });
+      toast.success(`Share code generated for ${propertyName}`);
+      return { code, propertyName, expiresAt };
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : "Failed to create share.");
+    }
+  });
+
+  // Consume a share invite
+  const consumeShareMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const result = await consumeShare(code);
+      // Store the code temporarily so we can decrypt events later
+      setPendingShareCodes(prev => new Map(prev).set(result.sourceEntityId, code));
+      // Register the key in the event stream
+      await eventStream.registerSharedKey(
+        result.sourceEntityId,
+        result.sealedKey as SealedInvitePayload,
+        code
+      );
+      // Refresh shares list
+      const updatedShares = await getShares();
+      setShares(updatedShares);
+      toast.success(`Now receiving ${result.propertyName} from ${result.sourceEntityId.slice(0, 8)}...`);
+      return result;
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : "Failed to consume share.");
+    }
+  });
+
+  // Revoke a share
+  const revokeShareMutation = useMutation({
+    mutationFn: async (params: { targetEntityId?: string; sourceEntityId?: string; propertyName: string }) => {
+      const { removed } = await revokeShare(
+        params.targetEntityId || null,
+        params.sourceEntityId || null,
+        params.propertyName
+      );
+      if (removed) {
+        // If revoking incoming share, unregister the key
+        if (params.sourceEntityId) {
+          eventStream.unregisterSharedKey(params.sourceEntityId);
+        }
+        // Refresh shares list
+        const updatedShares = await getShares();
+        setShares(updatedShares);
+        toast.success("Share removed");
+      }
+      return removed;
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : "Failed to revoke share.");
     }
   });
 
@@ -255,18 +342,45 @@ export function useVault() {
     onSettled: () => setRestoreDone(true)
   });
 
+  // Load shares when signed in
+  useEffect(() => {
+    if (signedIn && entityId) {
+      getShares().then(setShares).catch(console.error);
+    }
+  }, [signedIn, entityId]);
+
+  // Register keys for incoming shares when we have them
+  useEffect(() => {
+    shares.incoming.forEach(async (share) => {
+      const code = pendingShareCodes.get(share.sourceEntityId);
+      if (code) {
+        await eventStream.registerSharedKey(
+          share.sourceEntityId,
+          share.keyWrapped as SealedInvitePayload,
+          code
+        );
+      }
+    });
+  }, [shares.incoming, pendingShareCodes, eventStream]);
+
   const isBusy = useMemo(
     () =>
       loginMutation.isPending ||
       generateInviteMutation.isPending ||
       linkMutation.isPending ||
       resetMutation.isPending ||
+      createShareMutation.isPending ||
+      consumeShareMutation.isPending ||
+      revokeShareMutation.isPending ||
       (restoreMutation.isPending && !restoreDone),
     [
       loginMutation.isPending,
       generateInviteMutation.isPending,
       linkMutation.isPending,
       resetMutation.isPending,
+      createShareMutation.isPending,
+      consumeShareMutation.isPending,
+      revokeShareMutation.isPending,
       restoreMutation.isPending,
       restoreDone
     ]
@@ -295,18 +409,20 @@ export function useVault() {
 
   const resetEverything = () => resetMutation.mutateAsync();
 
-  // Real-time profile updates via WebSocket
-  const updateProfile = (field: "givenName" | "surname", value: string) => {
-    eventStream.updateProfile({ [field]: value });
-  };
+  // Share actions
+  const createShareInvite = (propertyName: string) => createShareMutation.mutateAsync(propertyName);
+  const acceptShare = (code: string) => consumeShareMutation.mutateAsync(code.trim().toUpperCase());
+  const removeShare = (params: { targetEntityId?: string; sourceEntityId?: string; propertyName: string }) =>
+    revokeShareMutation.mutateAsync(params);
 
   return {
     signedIn,
     supportsPasskeys,
     entityId,
     hasKey: !!entityPrivateKey,
-    // Profile state comes from real-time event stream
-    profile: eventStream.state,
+    // Entity state comes from real-time event stream
+    state: eventStream.state,
+    properties: eventStream.state?.properties ?? {},
     connected: eventStream.connected,
     inviteCode,
     setInviteCode,
@@ -321,6 +437,22 @@ export function useVault() {
     generateInvite,
     linkDevice,
     resetEverything,
-    updateProfile
+    // Property management
+    setProperty: eventStream.setProperty,
+    deleteProperty: eventStream.deleteProperty,
+    // Share-related
+    shares,
+    sharedData: eventStream.sharedData,
+    sharePropertyName,
+    setSharePropertyName,
+    shareCode,
+    setShareCode,
+    generatedShare,
+    isCreatingShare: createShareMutation.isPending,
+    isAcceptingShare: consumeShareMutation.isPending,
+    isRevokingShare: revokeShareMutation.isPending,
+    createShareInvite,
+    acceptShare,
+    removeShare,
   };
 }
