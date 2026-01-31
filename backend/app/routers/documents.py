@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import json
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -22,15 +23,22 @@ ALLOWED_CONTENT_TYPES = {"application/pdf", "image/png", "image/jpeg"}
 @router.get("", response_model=list[DocumentOut])
 def list_documents(
     request: Request,
+    category: DocumentCategory | None = Query(default=None),
+    tag: str | None = Query(default=None),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    docs = (
-        db.query(Document)
-        .filter(Document.user_id == user.id)
-        .order_by(Document.upload_date.desc(), Document.id.desc())
-        .all()
-    )
+    """List documents with optional category and tag filters."""
+    q = db.query(Document).filter(Document.user_id == user.id)
+    
+    if category:
+        q = q.filter(Document.category == category)
+    
+    docs = q.order_by(Document.upload_date.desc(), Document.id.desc()).all()
+    
+    # Filter by tag in Python (JSONB array filtering)
+    if tag:
+        docs = [d for d in docs if d.tags and tag in d.tags]
 
     log_audit(
         db=db,
@@ -39,7 +47,7 @@ def list_documents(
         action="documents.read",
         entity_type="document",
         entity_id=None,
-        metadata=None,
+        metadata={"category": category, "tag": tag},
     )
 
     return [
@@ -50,6 +58,7 @@ def list_documents(
             file_path=d.file_path,
             file_type=d.file_type,
             category=d.category,  # type: ignore[arg-type]
+            tags=d.tags,
             upload_date=d.upload_date,
             file_size=d.file_size,
         )
@@ -62,9 +71,11 @@ async def upload_document(
     request: Request,
     file: UploadFile = File(...),
     category: DocumentCategory = Form(...),
+    tags: str | None = Form(default=None),  # JSON array string or comma-separated
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Upload a document with optional tags."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="Missing filename")
 
@@ -89,12 +100,23 @@ async def upload_document(
         ContentType=content_type,
     )
 
+    # Parse tags
+    parsed_tags: list[str] | None = None
+    if tags:
+        try:
+            parsed_tags = json.loads(tags)
+            if not isinstance(parsed_tags, list):
+                parsed_tags = [str(t).strip() for t in tags.split(",") if t.strip()]
+        except json.JSONDecodeError:
+            parsed_tags = [t.strip() for t in tags.split(",") if t.strip()]
+
     doc = Document(
         user_id=user.id,
         filename=file.filename,
         file_path=key,
         file_type=content_type,
         category=category,
+        tags=parsed_tags,
         file_size=size,
     )
     db.add(doc)
@@ -108,7 +130,7 @@ async def upload_document(
         action="documents.upload",
         entity_type="document",
         entity_id=doc.id,
-        metadata={"filename": doc.filename, "category": doc.category, "file_size": doc.file_size},
+        metadata={"filename": doc.filename, "category": doc.category, "tags": doc.tags, "file_size": doc.file_size},
     )
 
     return DocumentOut(
@@ -118,6 +140,7 @@ async def upload_document(
         file_path=doc.file_path,
         file_type=doc.file_type,
         category=doc.category,  # type: ignore[arg-type]
+        tags=doc.tags,
         upload_date=doc.upload_date,
         file_size=doc.file_size,
     )
@@ -130,6 +153,7 @@ def download_document(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Download a document."""
     doc = db.get(Document, doc_id)
     if not doc or doc.user_id != user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
@@ -167,6 +191,7 @@ def delete_document(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Delete a document."""
     doc = db.get(Document, doc_id)
     if not doc or doc.user_id != user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
@@ -175,8 +200,7 @@ def delete_document(
     try:
         s3.delete_object(Bucket=settings.s3_bucket, Key=doc.file_path)
     except Exception:
-        # still delete DB row for UX, since the goal is "gone"
-        pass
+        pass  # still delete DB row
 
     db.delete(doc)
     db.commit()
@@ -192,4 +216,3 @@ def delete_document(
     )
 
     return {"ok": True}
-

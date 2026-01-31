@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.audit import log_audit
-from app.db.models import AuditLog, Document, MedicalRecord, User
+from app.db.models import AuditLog, DataRecord, Document, User
 from app.db.session import get_db
 from app.deps import get_current_user
 from app.schemas import AuditLogOut, StatsOut
@@ -32,14 +32,17 @@ def stats(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    med_counts_rows = (
-        db.query(MedicalRecord.record_type, func.count(MedicalRecord.id))
-        .filter(MedicalRecord.user_id == user.id)
-        .group_by(MedicalRecord.record_type)
+    """Get dashboard statistics."""
+    # Count records by category
+    category_counts_rows = (
+        db.query(DataRecord.category, func.count(DataRecord.id))
+        .filter(DataRecord.user_id == user.id)
+        .group_by(DataRecord.category)
         .all()
     )
-    medical_counts = {rt: int(cnt) for rt, cnt in med_counts_rows}
+    category_counts = {cat: int(cnt) for cat, cnt in category_counts_rows}
 
+    # Count documents by category
     doc_counts_rows = (
         db.query(Document.category, func.count(Document.id))
         .filter(Document.user_id == user.id)
@@ -48,6 +51,7 @@ def stats(
     )
     document_counts = {cat: int(cnt) for cat, cnt in doc_counts_rows}
 
+    # Recent audit entries
     recent = (
         db.query(AuditLog)
         .filter(AuditLog.user_id == user.id)
@@ -67,8 +71,7 @@ def stats(
     )
 
     return StatsOut(
-        medical_counts=medical_counts,
+        category_counts=category_counts,
         document_counts=document_counts,
         recent_audit=[_audit_out(a) for a in recent],
     )
-

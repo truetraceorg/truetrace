@@ -18,6 +18,11 @@ class Settings(BaseSettings):
 
     max_upload_bytes: int = 10 * 1024 * 1024
 
+    # WebAuthn settings
+    webauthn_rp_id: str = "localhost"
+    webauthn_rp_name: str = "Civitas"
+    webauthn_origin: str = "http://localhost:8000"
+
     class Config:
         env_file = ".env"
         case_sensitive = False

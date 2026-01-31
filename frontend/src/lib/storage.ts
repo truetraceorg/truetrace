@@ -1,4 +1,4 @@
-export const TOKEN_STORAGE_KEY = 'medvault.jwt';
+export const TOKEN_STORAGE_KEY = 'civitas.jwt';
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_STORAGE_KEY);
@@ -11,4 +11,3 @@ export function setToken(token: string | null): void {
   }
   localStorage.setItem(TOKEN_STORAGE_KEY, token);
 }
-

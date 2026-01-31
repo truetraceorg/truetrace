@@ -36,22 +36,64 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   return (await res.json()) as T;
 }
 
+// Auth types
 export type AuthTokenOut = { access_token: string; token_type: string };
 export type UserOut = { id: number; email: string; created_at: string };
+export type CredentialOut = { id: number; created_at: string };
 
-export async function register(email: string, password: string): Promise<AuthTokenOut> {
-  return apiFetch<AuthTokenOut>('/auth/register', {
+// WebAuthn types
+export type PublicKeyCredentialCreationOptionsJSON = {
+  challenge: string;
+  rp: { id: string; name: string };
+  user: { id: string; name: string; displayName: string };
+  pubKeyCredParams: { type: string; alg: number }[];
+  timeout?: number;
+  authenticatorSelection?: {
+    authenticatorAttachment?: string;
+    residentKey?: string;
+    userVerification?: string;
+  };
+  attestation?: string;
+};
+
+export type PublicKeyCredentialRequestOptionsJSON = {
+  challenge: string;
+  rpId?: string;
+  timeout?: number;
+  allowCredentials?: { id: string; type: string; transports?: string[] }[];
+  userVerification?: string;
+};
+
+// WebAuthn auth
+export async function registerBegin(email: string): Promise<PublicKeyCredentialCreationOptionsJSON> {
+  return apiFetch<PublicKeyCredentialCreationOptionsJSON>('/auth/register/begin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email }),
   });
 }
 
-export async function login(email: string, password: string): Promise<AuthTokenOut> {
-  return apiFetch<AuthTokenOut>('/auth/login', {
+export async function registerComplete(email: string, credential: unknown): Promise<AuthTokenOut> {
+  return apiFetch<AuthTokenOut>('/auth/register/complete', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, credential }),
+  });
+}
+
+export async function loginBegin(email: string): Promise<PublicKeyCredentialRequestOptionsJSON> {
+  return apiFetch<PublicKeyCredentialRequestOptionsJSON>('/auth/login/begin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function loginComplete(email: string, credential: unknown): Promise<AuthTokenOut> {
+  return apiFetch<AuthTokenOut>('/auth/login/complete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, credential }),
   });
 }
 
@@ -59,47 +101,85 @@ export async function me(): Promise<UserOut> {
   return apiFetch<UserOut>('/auth/me');
 }
 
-export type RecordType = 'medication' | 'vaccination' | 'lab_result' | 'condition' | 'allergy';
+export async function logout(): Promise<void> {
+  return apiFetch<void>('/auth/logout', { method: 'POST' });
+}
 
-export type MedicalRecordOut = {
+// Credentials management
+export async function listCredentials(): Promise<CredentialOut[]> {
+  return apiFetch<CredentialOut[]>('/auth/credentials');
+}
+
+export async function addCredentialBegin(): Promise<PublicKeyCredentialCreationOptionsJSON> {
+  return apiFetch<PublicKeyCredentialCreationOptionsJSON>('/auth/credentials/add/begin', {
+    method: 'POST',
+  });
+}
+
+export async function addCredentialComplete(email: string, credential: unknown): Promise<CredentialOut> {
+  return apiFetch<CredentialOut>('/auth/credentials/add/complete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, credential }),
+  });
+}
+
+export async function deleteCredential(id: number): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/auth/credentials/${id}`, { method: 'DELETE' });
+}
+
+// Data Records
+export type DataCategory = 'medical' | 'financial' | 'legal' | 'identity';
+
+export type DataRecordOut = {
   id: number;
   user_id: number;
-  record_type: RecordType;
+  category: DataCategory;
+  record_type: string;
   data: Record<string, unknown>;
   date: string;
   created_at: string;
   updated_at: string;
 };
 
-export async function listMedical(recordType?: RecordType): Promise<MedicalRecordOut[]> {
-  const qs = recordType ? `?record_type=${encodeURIComponent(recordType)}` : '';
-  return apiFetch<MedicalRecordOut[]>(`/medical${qs}`);
+export async function listRecords(category?: DataCategory, recordType?: string): Promise<DataRecordOut[]> {
+  const q = new URLSearchParams();
+  if (category) q.set('category', category);
+  if (recordType) q.set('record_type', recordType);
+  const qs = q.toString();
+  return apiFetch<DataRecordOut[]>(`/records${qs ? `?${qs}` : ''}`);
 }
 
-export async function createMedical(payload: { record_type: RecordType; date: string; data: Record<string, unknown> }): Promise<MedicalRecordOut> {
-  return apiFetch<MedicalRecordOut>('/medical', {
+export async function createRecord(payload: {
+  category: DataCategory;
+  record_type: string;
+  date: string;
+  data: Record<string, unknown>;
+}): Promise<DataRecordOut> {
+  return apiFetch<DataRecordOut>('/records', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
 }
 
-export async function updateMedical(
+export async function updateRecord(
   id: number,
-  payload: { date?: string; data?: Record<string, unknown> },
-): Promise<MedicalRecordOut> {
-  return apiFetch<MedicalRecordOut>(`/medical/${id}`, {
+  payload: { category?: DataCategory; record_type?: string; date?: string; data?: Record<string, unknown> },
+): Promise<DataRecordOut> {
+  return apiFetch<DataRecordOut>(`/records/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
 }
 
-export async function deleteMedical(id: number): Promise<{ ok: boolean }> {
-  return apiFetch<{ ok: boolean }>(`/medical/${id}`, { method: 'DELETE' });
+export async function deleteRecord(id: number): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(`/records/${id}`, { method: 'DELETE' });
 }
 
-export type DocumentCategory = 'medical' | 'financial' | 'legal';
+// Documents
+export type DocumentCategory = 'medical' | 'financial' | 'legal' | 'identity';
 export type DocumentOut = {
   id: number;
   user_id: number;
@@ -107,21 +187,29 @@ export type DocumentOut = {
   file_path: string;
   file_type: string;
   category: DocumentCategory;
+  tags: string[] | null;
   upload_date: string;
   file_size: number;
 };
 
-export async function listDocuments(): Promise<DocumentOut[]> {
-  return apiFetch<DocumentOut[]>('/documents');
+export async function listDocuments(category?: DocumentCategory, tag?: string): Promise<DocumentOut[]> {
+  const q = new URLSearchParams();
+  if (category) q.set('category', category);
+  if (tag) q.set('tag', tag);
+  const qs = q.toString();
+  return apiFetch<DocumentOut[]>(`/documents${qs ? `?${qs}` : ''}`);
 }
 
-export async function uploadDocument(file: File, category: DocumentCategory): Promise<DocumentOut> {
+export async function uploadDocument(file: File, category: DocumentCategory, tags?: string[]): Promise<DocumentOut> {
   const base = import.meta.env.VITE_API_BASE || '/api';
   const url = `${base}/documents/upload`;
 
   const form = new FormData();
   form.append('category', category);
   form.append('file', file);
+  if (tags && tags.length > 0) {
+    form.append('tags', JSON.stringify(tags));
+  }
 
   const token = getToken();
   const headers = new Headers();
@@ -159,10 +247,11 @@ export async function downloadDocument(doc: DocumentOut): Promise<void> {
   }
 }
 
+// Access Grants
 export type AccessGrantOut = {
   id: number;
   user_id: number;
-  grantee_email: string;
+  grantee_identifier: string;
   scope: string;
   purpose: string | null;
   start_date: string | null;
@@ -176,7 +265,7 @@ export async function listAccessGrants(): Promise<AccessGrantOut[]> {
 }
 
 export async function createAccessGrant(payload: {
-  grantee_email: string;
+  grantee_identifier: string;
   scope: string;
   purpose?: string | null;
   start_date?: string | null;
@@ -193,6 +282,7 @@ export async function revokeAccessGrant(id: number): Promise<AccessGrantOut> {
   return apiFetch<AccessGrantOut>(`/access-grants/${id}/revoke`, { method: 'PUT' });
 }
 
+// Audit
 export type AuditLogOut = {
   id: number;
   user_id: number;
@@ -213,8 +303,9 @@ export async function listAudit(params?: { action?: string; entity_type?: string
   return apiFetch<AuditLogOut[]>(`/audit${qs ? `?${qs}` : ''}`);
 }
 
+// Stats
 export type StatsOut = {
-  medical_counts: Record<string, number>;
+  category_counts: Record<string, number>;
   document_counts: Record<string, number>;
   recent_audit: AuditLogOut[];
 };
@@ -223,33 +314,30 @@ export async function getStats(): Promise<StatsOut> {
   return apiFetch<StatsOut>('/stats');
 }
 
+// Export
 export async function exportJson(): Promise<unknown> {
   return apiFetch<unknown>('/export/json');
 }
 
-export async function exportFhir(): Promise<unknown> {
-  return apiFetch<unknown>('/export/fhir');
+export async function exportCsv(): Promise<void> {
+  const base = import.meta.env.VITE_API_BASE || '/api';
+  const url = `${base}/export/csv`;
+  const token = getToken();
+  const headers = new Headers();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw await parseError(res);
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = 'civitas_export.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
-
-export type FinancialRecordOut = {
-  id: number;
-  user_id: number;
-  record_type: string;
-  data: Record<string, unknown>;
-  date: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export async function listFinancial(): Promise<FinancialRecordOut[]> {
-  return apiFetch<FinancialRecordOut[]>('/financial');
-}
-
-export async function createFinancial(payload: { record_type: string; date: string; data: Record<string, unknown> }): Promise<FinancialRecordOut> {
-  return apiFetch<FinancialRecordOut>('/financial', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-}
-

@@ -10,10 +10,10 @@ from app.db.base import Base  # noqa: F401
 from app.db.models import (  # noqa: F401
     AccessGrant,
     AuditLog,
+    DataRecord,
     Document,
-    FinancialRecord,
-    MedicalRecord,
     User,
+    WebAuthnCredential,
 )
 
 config = context.config

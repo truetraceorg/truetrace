@@ -18,7 +18,7 @@ def _to_out(g: AccessGrant) -> AccessGrantOut:
     return AccessGrantOut(
         id=g.id,
         user_id=g.user_id,
-        grantee_email=g.grantee_email,
+        grantee_identifier=g.grantee_identifier,
         scope=g.scope,
         purpose=g.purpose,
         start_date=g.start_date,
@@ -34,6 +34,7 @@ def list_grants(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """List access grants."""
     # Mark expired grants (best-effort)
     today = date.today()
     active = (
@@ -77,9 +78,10 @@ def create_grant(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Create a new access grant."""
     grant = AccessGrant(
         user_id=user.id,
-        grantee_email=payload.grantee_email,
+        grantee_identifier=payload.grantee_identifier,
         scope=payload.scope,
         purpose=payload.purpose,
         start_date=payload.start_date,
@@ -97,7 +99,7 @@ def create_grant(
         action="access_grants.create",
         entity_type="access_grant",
         entity_id=grant.id,
-        metadata={"grantee_email": grant.grantee_email, "scope": grant.scope},
+        metadata={"grantee_identifier": grant.grantee_identifier, "scope": grant.scope},
     )
 
     return _to_out(grant)
@@ -110,6 +112,7 @@ def revoke_grant(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Revoke an access grant."""
     grant = db.get(AccessGrant, grant_id)
     if not grant or grant.user_id != user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grant not found")
@@ -127,8 +130,7 @@ def revoke_grant(
         action="access_grants.revoke",
         entity_type="access_grant",
         entity_id=grant.id,
-        metadata={"grantee_email": grant.grantee_email},
+        metadata={"grantee_identifier": grant.grantee_identifier},
     )
 
     return _to_out(grant)
-

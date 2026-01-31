@@ -1,14 +1,23 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { login as apiLogin, me as apiMe, register as apiRegister, type UserOut } from '../lib/api';
+import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
+import {
+  registerBegin,
+  registerComplete,
+  loginBegin,
+  loginComplete,
+  me as apiMe,
+  logout as apiLogout,
+  type UserOut,
+} from '../lib/api';
 import { getToken, setToken } from '../lib/storage';
 
 type AuthContextValue = {
   token: string | null;
   user: UserOut | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  login: (email: string) => Promise<void>;
+  register: (email: string) => Promise<void>;
+  logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
 };
 
@@ -19,7 +28,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserOut | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await apiLogout();
+    } catch {
+      // Ignore errors on logout
+    }
     setToken(null);
     setTokenState(null);
     setUser(null);
@@ -35,9 +49,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const u = await apiMe();
       setUser(u);
     } catch {
-      logout();
+      setToken(null);
+      setTokenState(null);
+      setUser(null);
     }
-  }, [logout]);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -47,15 +63,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [refreshMe]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await apiLogin(email, password);
+  const login = useCallback(async (email: string) => {
+    // Step 1: Get authentication options from server
+    const options = await loginBegin(email);
+    
+    // Step 2: Trigger browser passkey prompt
+    const credential = await startAuthentication({ optionsJSON: options as any });
+    
+    // Step 3: Verify with server and get token
+    const res = await loginComplete(email, credential);
     setToken(res.access_token);
     setTokenState(res.access_token);
     await refreshMe();
   }, [refreshMe]);
 
-  const register = useCallback(async (email: string, password: string) => {
-    const res = await apiRegister(email, password);
+  const register = useCallback(async (email: string) => {
+    // Step 1: Get registration options from server
+    const options = await registerBegin(email);
+    
+    // Step 2: Trigger browser passkey creation prompt
+    const credential = await startRegistration({ optionsJSON: options as any });
+    
+    // Step 3: Verify with server and create user
+    const res = await registerComplete(email, credential);
     setToken(res.access_token);
     setTokenState(res.access_token);
     await refreshMe();
@@ -74,4 +104,3 @@ export function useAuth(): AuthContextValue {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
-

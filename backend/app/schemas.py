@@ -6,25 +6,31 @@ from typing import Any, Literal
 from pydantic import BaseModel, EmailStr, Field
 
 
-RecordType = Literal["medication", "vaccination", "lab_result", "condition", "allergy"]
-DocumentCategory = Literal["medical", "financial", "legal"]
+DataCategory = Literal["medical", "financial", "legal", "identity"]
+DocumentCategory = Literal["medical", "financial", "legal", "identity"]
 GrantStatus = Literal["active", "revoked", "expired"]
 
 
+# User schemas
 class UserOut(BaseModel):
     id: int
     email: EmailStr
     created_at: datetime
 
 
-class AuthRegisterIn(BaseModel):
+# WebAuthn schemas
+class WebAuthnBeginIn(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8, max_length=72)
 
 
-class AuthLoginIn(BaseModel):
+class WebAuthnRegisterCompleteIn(BaseModel):
     email: EmailStr
-    password: str
+    credential: dict[str, Any]
+
+
+class WebAuthnLoginCompleteIn(BaseModel):
+    email: EmailStr
+    credential: dict[str, Any]
 
 
 class AuthTokenOut(BaseModel):
@@ -32,28 +38,38 @@ class AuthTokenOut(BaseModel):
     token_type: str = "bearer"
 
 
-class MedicalRecordBase(BaseModel):
-    record_type: RecordType
+class CredentialOut(BaseModel):
+    id: int
+    created_at: datetime
+
+
+# Data Record schemas
+class DataRecordBase(BaseModel):
+    category: DataCategory
+    record_type: str = Field(min_length=1, max_length=64)
     data: dict[str, Any]
     date: dt_date
 
 
-class MedicalRecordCreate(MedicalRecordBase):
+class DataRecordCreate(DataRecordBase):
     pass
 
 
-class MedicalRecordUpdate(BaseModel):
+class DataRecordUpdate(BaseModel):
+    category: DataCategory | None = None
+    record_type: str | None = Field(default=None, min_length=1, max_length=64)
     data: dict[str, Any] | None = None
     date: dt_date | None = None
 
 
-class MedicalRecordOut(MedicalRecordBase):
+class DataRecordOut(DataRecordBase):
     id: int
     user_id: int
     created_at: datetime
     updated_at: datetime
 
 
+# Document schemas
 class DocumentOut(BaseModel):
     id: int
     user_id: int
@@ -61,12 +77,14 @@ class DocumentOut(BaseModel):
     file_path: str
     file_type: str
     category: DocumentCategory
+    tags: list[str] | None
     upload_date: datetime
     file_size: int
 
 
+# Access Grant schemas
 class AccessGrantCreate(BaseModel):
-    grantee_email: EmailStr
+    grantee_identifier: str = Field(min_length=1, max_length=320)
     scope: str = Field(min_length=1, max_length=256)
     purpose: str | None = Field(default=None, max_length=512)
     start_date: dt_date | None = None
@@ -76,7 +94,7 @@ class AccessGrantCreate(BaseModel):
 class AccessGrantOut(BaseModel):
     id: int
     user_id: int
-    grantee_email: EmailStr
+    grantee_identifier: str
     scope: str
     purpose: str | None
     start_date: dt_date | None
@@ -85,6 +103,7 @@ class AccessGrantOut(BaseModel):
     created_at: datetime
 
 
+# Audit Log schemas
 class AuditLogOut(BaseModel):
     id: int
     user_id: int
@@ -96,23 +115,8 @@ class AuditLogOut(BaseModel):
     timestamp: datetime
 
 
-class FinancialRecordCreate(BaseModel):
-    record_type: str = Field(min_length=1, max_length=64)
-    data: dict[str, Any]
-    date: dt_date
-
-
-class FinancialRecordOut(BaseModel):
-    id: int
-    user_id: int
-    record_type: str
-    data: dict[str, Any]
-    date: dt_date
-    created_at: datetime
-    updated_at: datetime
-
-
+# Stats schemas
 class StatsOut(BaseModel):
-    medical_counts: dict[str, int]
+    category_counts: dict[str, int]
     document_counts: dict[str, int]
     recent_audit: list[AuditLogOut]
