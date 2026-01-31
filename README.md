@@ -8,6 +8,14 @@ A secure, end-to-end encrypted vault application with passkey authentication, re
 
 Experience TrueTrace in your browser - no installation required! Use your device's passkey (Touch ID, Face ID, Windows Hello, etc.) to get started.
 
+## About
+
+TrueTrace was initially created for the **Cursor AI Hackathon Hamburg** (January 31st - February 1st, 2026). The hackathon brought together developers to build innovative applications using AI-powered development tools.
+
+**Hackathon Event**: [Cursor AI Hackathon Hamburg](https://luma.com/hl7wv7k3)
+
+**Original Idea**: The concept for TrueTrace was inspired by the ideas outlined in [this document](https://docs.google.com/document/d/1861GQSk93iyyFrrJTpvZMu7Zu8f4GgurFE2FRKUZh7M/edit?tab=t.0), which explored the possibilities of building secure, privacy-focused applications with modern web technologies.
+
 ## Features
 
 - 🔐 **Passkey Authentication** - Secure, passwordless authentication using WebAuthn
