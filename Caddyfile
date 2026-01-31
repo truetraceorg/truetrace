@@ -1,0 +1,16 @@
+:80 {
+  encode zstd gzip
+
+  # Proxy API to FastAPI
+  handle_path /api/* {
+    reverse_proxy backend:8000 {
+      header_up X-Forwarded-For {remote_host}
+      header_up X-Forwarded-Proto {scheme}
+    }
+  }
+
+  # Everything else -> Vite dev server (dev compose)
+  handle {
+    reverse_proxy frontend:5173
+  }
+}
