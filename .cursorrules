@@ -1,0 +1,2 @@
+We use Bun as the package manager. Prefer `bun install`, `bun run`, and `bunx` instead of npm/yarn/pnpm.
+You can always run `bun install` if needed.
