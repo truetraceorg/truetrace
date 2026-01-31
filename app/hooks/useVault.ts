@@ -110,16 +110,18 @@ export function useVault() {
     setLocal(USER_ID_KEY, userId);
 
     const registration = await startRegistration({
-      challenge: randomBase64Url(),
-      rp: { name: "Truetrace Vault", id: window.location.hostname },
-      user: { id: userId, name: "user@truetrace.local", displayName: "User" },
-      pubKeyCredParams: [
-        { type: "public-key", alg: -7 },
-        { type: "public-key", alg: -257 }
-      ],
-      authenticatorSelection: { residentKey: "required", userVerification: "required" },
-      timeout: 60000,
-      attestation: "none"
+      optionsJSON: {
+        challenge: randomBase64Url(),
+        rp: { name: "Truetrace Vault", id: window.location.hostname },
+        user: { id: userId, name: "user@truetrace.local", displayName: "User" },
+        pubKeyCredParams: [
+          { type: "public-key", alg: -7 },
+          { type: "public-key", alg: -257 }
+        ],
+        authenticatorSelection: { residentKey: "required", userVerification: "required" },
+        timeout: 60000,
+        attestation: "none"
+      }
     });
 
     setLocal(CREDENTIAL_ID_KEY, registration.id);
@@ -158,10 +160,12 @@ export function useVault() {
       if (storedCredentialId) {
         // User has registered before - authenticate with existing passkey
         const auth = await startAuthentication({
-          challenge: randomBase64Url(),
-          timeout: 60000,
-          userVerification: "required",
-          rpId: window.location.hostname
+          optionsJSON: {
+            challenge: randomBase64Url(),
+            timeout: 60000,
+            userVerification: "required",
+            rpId: window.location.hostname
+          }
         });
         credentialId = auth.id;
         setLocal(CREDENTIAL_ID_KEY, credentialId);
