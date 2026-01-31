@@ -424,13 +424,158 @@ No environment variables required for basic operation. The server runs on `local
 - **Storage**: IndexedDB (idb-keyval), File System (JSON)
 - **Styling**: CSS Modules with custom properties
 
-## License
-
-[Add your license here]
-
 ## Contributing
 
-[Add contribution guidelines here]
+We welcome contributions to TrueTrace! This document provides guidelines for contributing to the project.
+
+### Getting Started
+
+1. **Fork the repository** and clone your fork
+2. **Create a branch** for your changes: `git checkout -b feature/your-feature-name`
+3. **Make your changes** following our coding standards
+4. **Test thoroughly** - ensure all existing tests pass and add tests for new features
+5. **Commit your changes** with clear, descriptive commit messages
+6. **Push to your fork** and open a Pull Request
+
+### Development Setup
+
+```bash
+# Clone your fork
+git clone https://github.com/your-username/truetrace.git
+cd truetrace
+
+# Install dependencies
+bun install
+
+# Start development server
+bun run dev
+```
+
+### Coding Standards
+
+- **TypeScript**: Use TypeScript for all new code. Follow existing patterns and type definitions.
+- **Code Style**: Follow the existing code style. Use consistent formatting (we recommend using your editor's auto-format).
+- **Naming**: Use descriptive names for variables, functions, and components.
+- **Comments**: Add comments for complex logic, but prefer self-documenting code.
+- **Error Handling**: Always handle errors appropriately. Log errors for debugging but don't expose sensitive information.
+
+### Security Considerations
+
+- **Never commit secrets**: API keys, passwords, or private keys should never be committed.
+- **Encryption**: Maintain the zero-knowledge architecture. Server should never decrypt user data.
+- **Input Validation**: Validate and sanitize all user inputs.
+- **Dependencies**: Keep dependencies up to date and review security advisories.
+
+### Testing
+
+- Test your changes manually in the browser
+- Ensure the application works across different browsers (Chrome, Firefox, Safari, Edge)
+- Test with multiple devices/passkeys when possible
+- Verify encryption/decryption works correctly
+- Test error scenarios and edge cases
+
+### Pull Request Process
+
+1. **Update Documentation**: Update README.md if you've changed functionality or added features
+2. **Write Clear PR Description**: Explain what changes you made and why
+3. **Reference Issues**: Link to any related issues in your PR description
+4. **Keep PRs Focused**: One feature or fix per PR. Keep changesets small and reviewable.
+5. **Respond to Feedback**: Be open to feedback and willing to make changes based on code review
+
+### Commit Messages
+
+Write clear, descriptive commit messages:
+
+```
+feat: Add property sharing between entities
+fix: Resolve race condition in event queue
+docs: Update README with architecture diagrams
+refactor: Extract encryption logic to separate module
+test: Add tests for share code generation
+```
+
+Use conventional commit prefixes:
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation changes
+- `style:` - Code style changes (formatting, etc.)
+- `refactor:` - Code refactoring
+- `test:` - Adding or updating tests
+- `chore:` - Maintenance tasks
+
+### Areas for Contribution
+
+We particularly welcome contributions in these areas:
+
+- **Security**: Security audits, vulnerability reports, encryption improvements
+- **Performance**: Optimization of encryption/decryption, event processing, or UI rendering
+- **UX/UI**: Improvements to user experience, accessibility, or visual design
+- **Documentation**: Better documentation, examples, or tutorials
+- **Testing**: Additional test coverage, integration tests, or E2E tests
+- **Features**: New features that align with the project's goals (discuss in issues first)
+
+### Reporting Issues
+
+When reporting issues, please include:
+
+- **Description**: Clear description of the issue
+- **Steps to Reproduce**: Detailed steps to reproduce the problem
+- **Expected Behavior**: What you expected to happen
+- **Actual Behavior**: What actually happened
+- **Environment**: Browser, OS, and version information
+- **Screenshots**: If applicable, include screenshots or error messages
+
+### Code of Conduct
+
+- Be respectful and inclusive
+- Welcome newcomers and help them get started
+- Focus on constructive feedback
+- Respect different viewpoints and experiences
+
+### Questions?
+
+If you have questions about contributing, feel free to:
+- Open an issue with the `question` label
+- Check existing issues and discussions
+- Review the codebase to understand patterns
+
+Thank you for contributing to TrueTrace! 🎉
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
+
+```
+Copyright (C) 2024 TrueTrace Contributors
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+```
+
+### What This Means
+
+- ✅ **You can use** this software for any purpose
+- ✅ **You can modify** the source code
+- ✅ **You can distribute** the software
+- ✅ **You can distribute** your modifications
+
+**However**, if you distribute modified versions:
+- You must **license your modifications** under GPL-3.0
+- You must **make source code available** to recipients
+- You must **include the original license** and copyright notices
+- You must **document your changes**
+
+For more information, see the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.html).
 
 ## Acknowledgments
 
