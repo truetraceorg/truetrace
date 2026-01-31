@@ -2,6 +2,12 @@
 
 A secure, end-to-end encrypted vault application with passkey authentication, real-time synchronization, and property sharing capabilities. Built with Next.js, Socket.IO, and libsodium for maximum security and privacy.
 
+## 🚀 Try It Out
+
+**Live Demo**: [https://truetrace-production.up.railway.app/](https://truetrace-production.up.railway.app/)
+
+Experience TrueTrace in your browser - no installation required! Use your device's passkey (Touch ID, Face ID, Windows Hello, etc.) to get started.
+
 ## Features
 
 - 🔐 **Passkey Authentication** - Secure, passwordless authentication using WebAuthn
